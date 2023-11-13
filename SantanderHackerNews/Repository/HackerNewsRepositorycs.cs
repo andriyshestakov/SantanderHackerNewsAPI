@@ -1,4 +1,4 @@
-﻿namespace SantanderHackerNews.Repository
+namespace SantanderHackerNews.Repository
 {
     using Newtonsoft.Json;
     using SantanderHackerNews.Models;
@@ -7,7 +7,7 @@
     public class HackerNewsRepository : IHackerNewsRepository
     {
         private readonly object _storiesLock = new object();
-        private HashSet<string> _storySet;
+        private string _storySet;
         private ReadOnlyCollection<Lazy<Story>> _stories;
 
         private readonly ILogger<HackerNewsRepository> _logger;
@@ -15,19 +15,18 @@
         {
             _logger = logger;
             _stories = new ReadOnlyCollection<Lazy<Story>>(new List<Lazy<Story>>());
-            _storySet = new HashSet<string>();
         }
 
         public async Task<List<Story>> GetBestStories(int count)
         {
             var bestStoriesIds = await GetBestStoriesFromHackerNewsApi();
-            var bestStorieSet = new HashSet<string>(bestStoriesIds);
+            var bestStorieSet = bestStoriesIds.Aggregate((s1, s2) => $"{s1},{s2}");
             lock (_storiesLock)
             {
-                if (!_storySet.SetEquals(bestStorieSet))
+                if (! StringComparer.InvariantCultureIgnoreCase.Equals(_storySet,bestStorieSet))
                 {
                     var newStories = new List<Lazy<Story>>();
-                    foreach (var storyId in bestStorieSet)
+                    foreach (var storyId in bestStoriesIds)
                     {
                         newStories.Add(new Lazy<Story>(() => FetchStory(storyId), LazyThreadSafetyMode.ExecutionAndPublication));
                     }
